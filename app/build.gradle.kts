@@ -13,7 +13,7 @@ android {
 
     defaultConfig {
         applicationId = "net.vaultcity.splitp2p"
-        minSdk = 30
+        minSdk = 31
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
@@ -37,9 +37,18 @@ android {
     buildFeatures {
         compose = true
     }
+    packaging {
+        resources {
+            // Dies verhindert Konflikte, falls JNA-Dateien doppelt vorhanden sind
+            excludes += "/META-INF/AL2.0"
+            excludes += "/META-INF/LGPL2.1"
+            excludes += "**/libjnidispatch.so"
+        }
+    }
 }
 
 dependencies {
+    //
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -60,6 +69,12 @@ dependencies {
     implementation(libs.room.ktx)
 
     // Lazysodium
-    implementation(libs.lazysodium.android)
-    implementation(libs.jna)
+    implementation(libs.lazysodium.android) {
+        exclude(group = "net.java.dev.jna")
+    }
+
+    // um die Android-spezifische JNA Version zu forcieren:
+    implementation("net.java.dev.jna:jna:5.17.0@aar")
+    //
+    implementation(libs.androidx.navigation.compose)
 }

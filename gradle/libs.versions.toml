@@ -10,8 +10,9 @@ kotlin = "2.2.10"
 composeBom = "2026.02.01"
 # neu fuer das projekt
 room = "2.6.1"
-lazysodium = "5.1.1"
-jna = "5.13.0"
+lazysodium = "5.2.0"
+#
+navigationCompose = "2.8.5"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -34,7 +35,8 @@ room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 # Lazysodium (benötigt JNA für Android)
 lazysodium-android = { group = "com.goterl", name = "lazysodium-android", version.ref = "lazysodium" }
-jna = { group = "net.java.dev.jna", name = "jna", version.ref = "jna" }
+#
+androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
