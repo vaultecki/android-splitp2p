@@ -33,6 +33,9 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import java.security.KeyPairGenerator
 import java.security.KeyStore
 
@@ -41,71 +44,36 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // Lazysodium kurz initialisieren
-        val sodium = SodiumAndroid()
-        val ls = LazySodiumAndroid(sodium)
-
-        // 1. Schlüsselpaar generieren (Ed25519)
-        val signKeyPair = ls.cryptoSignKeypair()
-
-        val message = "Hallo P2P Welt!"
-
-        // 2. Nachricht signieren
-        val signature = ls.cryptoSignDetached(message, signKeyPair.secretKey)
-
-        // 3. Überprüfen (beim Empfänger)
-        val isValid = ls.cryptoSignVerifyDetached(
-            signature,
-            message,
-            signKeyPair.publicKey
-        )
-
-        Log.d("Crypto", "Signatur gültig? $isValid")
-
-        Log.d("Crypto", "Mein öffentlicher Schlüssel: ${signKeyPair.publicKey.asHexString}")
-
-        // 1. Gemeinsamen Schlüssel generieren (32 Bytes)
-        val sharedKey = ls.cryptoSecretBoxKeygen()
-
-        // 2. Nonce generieren (24 Bytes)
-        val nonce = ls.nonce(24)
-
-        val plainText = "Geheime P2P Nachricht"
-
-        // 3. Verschlüsseln
-        val cipherText = ls.cryptoSecretBoxEasy(plainText, nonce, sharedKey)
-
-        // 4. Entschlüsseln
-        val decrypted = ls.cryptoSecretBoxOpenEasy(cipherText, nonce, sharedKey)
-
-        Log.d("Crypto", "Entschlüsselt: $decrypted")
-
-        val keyAlias = "SplitP2PUser"
-
         setContent {
             Splitp2pTheme {
-                // State, ob der Key existiert
-                var isInitialized by remember { mutableStateOf(hasIdentityKey(keyAlias)) }
+                val navController = rememberNavController()
+                val keyAlias = "SplitP2PUser"
 
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Box(modifier = Modifier.padding(innerPadding)) {
-                        if (!isInitialized) {
-                            WelcomeScreen(onGenerateKey = {
-                                generateKeystoreEd25519(keyAlias)
-                                isInitialized = true
-                            })
-                        } else {
-                            // Hier geht's zur eigentlichen App
-                            //MainAppContent(keyAlias)
-                            Log.d("UI", "MainApp")
-                            deleteKeyFromKeystore(keyAlias)
-                        }
+                // Start-Ziel bestimmen: Wenn Key da -> Main, sonst Onboarding
+                val startDestination = if (hasIdentityKey(keyAlias)) "main" else "onboarding"
+
+                NavHost(navController = navController, startDestination = startDestination) {
+                    composable("onboarding") {
+                        OnboardingScreen(onKeyGenerated = {
+                            // Navigiere zur Main und lösche das Onboarding aus dem Backstack
+                            navController.navigate("main") {
+                                popUpTo("onboarding") { inclusive = true }
+                            }
+                        })
+                    }
+                    composable("main") {
+                        MainScreen(onLogout = {
+                            navController.navigate("onboarding") {
+                                popUpTo("main") { inclusive = true }
+                            }
+                        })
                     }
                 }
             }
         }
     }
 }
+
 
 @Composable
 fun Greeting(name: String, modifier: Modifier = Modifier) {
