@@ -48,3 +48,12 @@ fun generateKeystoreEd25519(alias: String) {
     kpg.initialize(parameterSpec)
     kpg.generateKeyPair()
 }
+
+fun getPublicKeyAsHex(alias: String): String {
+    val keyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+    val certificate = keyStore.getCertificate(alias)
+    val publicKeyBytes = certificate.publicKey.encoded
+
+    // Wir nutzen hier eine einfache Hex-Konvertierung
+    return publicKeyBytes.joinToString("") { "%02x".format(it) }
+}

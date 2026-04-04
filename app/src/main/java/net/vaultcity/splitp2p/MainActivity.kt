@@ -38,8 +38,20 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import java.security.KeyPairGenerator
 import java.security.KeyStore
+//
+import androidx.room.Room
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
+    // Datenbank als Member-Variable (Lazy sorgt für Initialisierung bei erstem Zugriff)
+    private val db by lazy {
+        Room.databaseBuilder(
+            applicationContext,
+            AppDatabase::class.java, "splitp2p-db"
+        ).build()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -49,20 +61,29 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
                 val keyAlias = "SplitP2PUser"
 
-                // Start-Ziel bestimmen: Wenn Key da -> Main, sonst Onboarding
+                // Navigation Logik
                 val startDestination = if (hasIdentityKey(keyAlias)) "main" else "onboarding"
 
                 NavHost(navController = navController, startDestination = startDestination) {
                     composable("onboarding") {
-                        OnboardingScreen(onKeyGenerated = {
-                            // Navigiere zur Main und lösche das Onboarding aus dem Backstack
-                            navController.navigate("main") {
-                                popUpTo("onboarding") { inclusive = true }
+                        OnboardingScreen(onFinished = { name ->
+                            val pubKey = getPublicKeyAsHex(keyAlias)
+
+                            // Speichern in Room
+                            lifecycleScope.launch {
+                                db.userProfileDao().insertProfile(
+                                    UserProfile(name = name, publicKeyHex = pubKey)
+                                )
+                                navController.navigate("main") {
+                                    popUpTo("onboarding") { inclusive = true }
+                                }
                             }
                         })
                     }
+
                     composable("main") {
-                        MainScreen(onLogout = {
+                        // Wir übergeben die DB an den MainScreen
+                        MainScreen(database = db, onLogout = {
                             navController.navigate("onboarding") {
                                 popUpTo("main") { inclusive = true }
                             }
@@ -71,23 +92,6 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-    }
-}
-
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    Splitp2pTheme {
-        Greeting("Android")
     }
 }
 
