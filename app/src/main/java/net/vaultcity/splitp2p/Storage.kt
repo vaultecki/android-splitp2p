@@ -95,4 +95,7 @@ interface GroupDao {
 
     @Query("SELECT * FROM settlements WHERE group_id = :groupId ORDER BY timestamp DESC")
     fun getSettlementsForGroup(groupId: String): Flow<List<Settlement>>
+
+    @Query("SELECT * FROM users WHERE group_id = :groupId")
+    fun getUsersForGroupFlow(groupId: String): Flow<List<User>>
 }
