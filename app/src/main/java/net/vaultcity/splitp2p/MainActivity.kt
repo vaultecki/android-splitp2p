@@ -76,8 +76,27 @@ class MainActivity : ComponentActivity() {
                             onGroupSelected = { groupId ->
                                 navController.navigate("group_detail/$groupId")
                             },
-                            onAddGroup = { /* Navigation zu AddGroup */ },
+                            onAddGroup = { navController.navigate("add_group") },
                             onJoinGroup = { /* Navigation zu JoinGroup */ }
+                        )
+                    }
+
+                    composable("add_group") {
+                        val groupDao = db.groupDao()
+                        val groupViewModel = viewModel<GroupViewModel>(
+                            factory = object : ViewModelProvider.Factory {
+                                override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                                    return GroupViewModel(groupDao) as T
+                                }
+                            }
+                        )
+
+                        AddGroupScreen(
+                            onGroupCreated = { name, currency ->
+                                groupViewModel.addGroup(name, currency)
+                                navController.popBackStack()
+                            },
+                            onBack = { navController.popBackStack() }
                         )
                     }
 

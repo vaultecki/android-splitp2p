@@ -11,6 +11,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class) // Notwendig für CenterAlignedTopAppBar
 @Composable
@@ -92,4 +94,17 @@ fun GroupCard(group: GroupInfo, onClick: () -> Unit) {
 
 class GroupViewModel(private val groupDao: GroupDao) : ViewModel() {
     val allGroups = groupDao.getAllGroupsFlow()
+
+    // Hier gehört die Funktion hin!
+    fun addGroup(name: String, currency: String) {
+        viewModelScope.launch {
+            val newGroup = GroupInfo(
+                group_id = java.util.UUID.randomUUID().toString(),
+                name = name,
+                currency = currency,
+                group_key = java.util.UUID.randomUUID().toString().replace("-", "")
+            )
+            groupDao.insertGroup(newGroup)
+        }
+    }
 }
