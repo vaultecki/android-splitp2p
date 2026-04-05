@@ -131,6 +131,8 @@ class MainActivity : ComponentActivity() {
                                         myName = profile.name,
                                         myPublicKey = profile.publicKeyHex
                                     )
+
+                                    navController.popBackStack()
                                 }
                             }
                         )
