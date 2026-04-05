@@ -49,8 +49,13 @@ class AddExpenseViewModel(
 
     private suspend fun loadMembers() {
         val users = groupDao.getUsersInGroup(groupId)
-        _memberSplits.value = users.map {
-            MemberSplitState(publicKey = it.public_key, name = it.name)
+        _memberSplits.value = users.map { user ->
+            MemberSplitState(
+                publicKey = user.public_key,
+                name = user.name,
+                // Ersteller ist standardmäßig ausgewählt
+                isSelected = user.public_key == myPublicKey
+            )
         }
     }
 
@@ -85,6 +90,12 @@ class AddExpenseViewModel(
     }
 
     fun saveExpense(description: String, amountInCents: Long) {
+        val selectedMembers = _memberSplits.value.filter { it.isSelected }
+        if (selectedMembers.isEmpty()) {
+            // Hier könnte man einen Fehler-State setzen
+            return
+        }
+
         viewModelScope.launch {
             val keyAlias = "SplitP2PUser"
             val now = System.currentTimeMillis()
@@ -235,9 +246,11 @@ fun AddExpenseScreen(
             OutlinedTextField(
                 value = amountText,
                 onValueChange = { input ->
-                    // Erlaube nur Zahlen und ein Trennzeichen
-                    if (input.all { it.isDigit() || it == '.' || it == ',' }) {
-                        amountText = input
+                    // Erlaube nur Zahlen und Komma/Punkt
+                    val filteredInput = input.replace(",", ".")
+                    if (filteredInput.isEmpty() || filteredInput.matches(Regex("""^\d*\.?\d{0,2}$"""))) {                        amountText = input
+                        val totalCents = parseAmountToCents(filteredInput)
+                        viewModel.recalculateSplits(totalCents)
                     }
                 },
                 label = { Text("Betrag") },
