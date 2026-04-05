@@ -43,6 +43,8 @@ import androidx.compose.ui.unit.dp
 import com.github.alexzhirkevich.customqrgenerator.QrData
 import com.github.alexzhirkevich.customqrgenerator.vector.QrCodeDrawable
 import com.github.alexzhirkevich.customqrgenerator.vector.QrVectorOptions
+import com.goterl.lazysodium.LazySodiumAndroid
+import com.goterl.lazysodium.SodiumAndroid
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -54,7 +56,8 @@ data class GroupJoinPayload(
     val id: String,
     val name: String,
     val currency: String,
-    val key: String
+    val key: String,
+    val version: Long
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -154,13 +157,17 @@ fun AddGroupScreen(
                     // "Erstellen" Knopf (Deaktiviert, wenn Name leer ist)
                     Button(
                         onClick = {
+                            // Lazysodium kurz initialisieren
+                            val sodium = SodiumAndroid()
+                            val ls = LazySodiumAndroid(sodium)
                             // Daten generieren
                             val payload = GroupJoinPayload(
                                 id = UUID.randomUUID().toString(),
                                 name = groupName,
                                 currency = selectedCurrency,
                                 // Simpler Hex-Key Platzhalter
-                                key = UUID.randomUUID().toString().replace("-", "")
+                                key = ls.nonce(32).toHexString(),
+                                version = 1
                             )
                             // In JSON verwandeln
                             qrPayloadJson = Json.encodeToString(payload)
@@ -209,8 +216,7 @@ fun AddGroupScreen(
                 // --- QR-Code generieren (als Bitmap) ---
                 // Wir nutzen remember, damit der Code nicht bei jedem Re-Draw neu generiert wird
                 val qrCodeBitmap = remember(qrPayloadJson) {
-                    val data: QrData = QrData.Text("this is a test")
-                        //QrData.Text(qrPayloadJson)
+                    val data: QrData = QrData.Text(qrPayloadJson)
                     val options = QrVectorOptions.Builder()
                         .setPadding(0.125f) // Ein wenig Rand
                         .build()
