@@ -79,7 +79,7 @@ class MainActivity : ComponentActivity() {
                         GroupSelectionScreen(
                             viewModel = groupViewModel,
                             onGroupSelected = { groupId ->
-                                navController.navigate("group_detail/$groupId")
+                                navController.navigate("expense_overview/$groupId")
                             },
                             onAddGroup = { navController.navigate("add_group") },
                             onJoinGroup = { navController.navigate("join_group") }
@@ -134,6 +134,28 @@ class MainActivity : ComponentActivity() {
 
                                     navController.popBackStack()
                                 }
+                            }
+                        )
+                    }
+
+                    composable("expense_overview/{groupId}") { backStackEntry ->
+                        val groupId = backStackEntry.arguments?.getString("groupId") ?: return@composable
+                        val groupDao = db.groupDao()
+
+                        // ViewModel mit Factory, um die groupId zu übergeben
+                        val detailViewModel = viewModel<ExpenseOverviewModel>(
+                            factory = object : ViewModelProvider.Factory {
+                                override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                                    return ExpenseOverviewModel(groupDao, groupId) as T
+                                }
+                            }
+                        )
+
+                        ExpenseOverviewScreen(
+                            viewModel = detailViewModel,
+                            onBack = { navController.popBackStack() },
+                            onAddExpense = {
+                                // Hier später: navController.navigate("add_expense/$groupId")
                             }
                         )
                     }

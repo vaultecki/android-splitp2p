@@ -86,4 +86,13 @@ interface GroupDao {
 
     @Query("DELETE FROM group_info WHERE group_id = :groupId")
     suspend fun deleteGroupById(groupId: String)
+
+    @Query("SELECT * FROM group_info WHERE group_id = :groupId")
+    fun getGroupByIdFlow(groupId: String): Flow<GroupInfo?>
+
+    @Query("SELECT * FROM expenses WHERE group_id = :groupId ORDER BY timestamp DESC")
+    fun getExpensesForGroup(groupId: String): Flow<List<Expense>>
+
+    @Query("SELECT * FROM settlements WHERE group_id = :groupId ORDER BY timestamp DESC")
+    fun getSettlementsForGroup(groupId: String): Flow<List<Settlement>>
 }
