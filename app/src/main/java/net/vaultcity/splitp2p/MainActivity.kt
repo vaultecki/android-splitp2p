@@ -85,6 +85,7 @@ class MainActivity : ComponentActivity() {
                         val groupDao = db.groupDao()
                         val groupViewModel = viewModel<GroupViewModel>(
                             factory = object : ViewModelProvider.Factory {
+                                @Suppress("UNCHECKED_CAST")
                                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
                                     return GroupViewModel(groupDao) as T
                                 }
@@ -92,8 +93,14 @@ class MainActivity : ComponentActivity() {
                         )
 
                         AddGroupScreen(
-                            onGroupCreated = { name, currency ->
-                                groupViewModel.addGroup(name, currency)
+                            onGroupCreated = { payload ->
+                                // Hier nutzen wir das payload-Objekt, das alle Daten (ID, Name, Währung, Key) enthält
+                                groupViewModel.addGroup(
+                                    name = payload.name,
+                                    currency = payload.currency
+                                    // Falls dein ViewModel bereits den group_key und die ID unterstützt,
+                                    // solltest du diese hier ebenfalls übergeben.
+                                )
                                 navController.popBackStack()
                             },
                             onBack = { navController.popBackStack() }
