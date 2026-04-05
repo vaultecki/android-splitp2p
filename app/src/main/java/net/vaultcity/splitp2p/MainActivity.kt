@@ -94,16 +94,12 @@ class MainActivity : ComponentActivity() {
 
                         AddGroupScreen(
                             onGroupCreated = { payload ->
-                                // Hier nutzen wir das payload-Objekt, das alle Daten (ID, Name, Währung, Key) enthält
-                                groupViewModel.addGroup(
-                                    name = payload.name,
-                                    currency = payload.currency
-                                    // Falls dein ViewModel bereits den group_key und die ID unterstützt,
-                                    // solltest du diese hier ebenfalls übergeben.
-                                )
-                                navController.popBackStack()
+                                // Nur speichern, NICHT schließen!
+                                groupViewModel.addGroup(payload.name, payload.currency)
                             },
-                            onBack = { navController.popBackStack() }
+                            onBack = {
+                                navController.popBackStack()
+                            }
                         )
                     }
 
