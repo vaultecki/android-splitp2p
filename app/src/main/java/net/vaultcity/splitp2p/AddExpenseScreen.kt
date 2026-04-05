@@ -205,7 +205,8 @@ fun AddExpenseScreen(
         },
         floatingActionButton = {
             FloatingActionButton(onClick = {
-                val total = (amountText.toDoubleOrNull() ?: 0.0) * 100
+                // Sicherstellen, dass wir Cents an das ViewModel schicken
+                val total = (amountText.replace(",", ".").toDoubleOrNull() ?: 0.0) * 100
                 viewModel.saveExpense(description, total.toLong())
                 onBack()
             }) {

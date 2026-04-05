@@ -164,10 +164,10 @@ interface GroupDao {
     suspend fun getMaxLamportAttachments(groupId: String): Long?
 
     @Query("""
-    SELECT MAX(s.lamport_clock)
-    FROM split s
-    JOIN expenses e ON s.belongs_to = e.id
-    WHERE e.group_id = :groupId
-""")
+        SELECT MAX(s.lamport_clock) 
+        FROM split s
+        JOIN expenses e ON s.belongs_to = e.id
+        WHERE e.group_id = :groupId
+    """)
     suspend fun getMaxLamportSplits(groupId: String): Long?
 }
