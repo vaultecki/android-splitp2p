@@ -4,6 +4,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.lifecycle.ViewModel
 import net.vaultcity.splitp2p.ui.theme.Splitp2pTheme
 //
@@ -40,6 +42,9 @@ class MainActivity : ComponentActivity() {
 
                 // Navigation Logik
                 val startDestination = if (hasIdentityKey(keyAlias)) "group_selection" else "onboarding"
+
+                // userprofile wird benötigt
+                val userProfile by db.userProfileDao().getUserProfile().collectAsState(initial = null)
 
                 NavHost(navController = navController, startDestination = startDestination) {
                     composable("onboarding") {
@@ -85,7 +90,6 @@ class MainActivity : ComponentActivity() {
                         val groupDao = db.groupDao()
                         val groupViewModel = viewModel<GroupViewModel>(
                             factory = object : ViewModelProvider.Factory {
-                                @Suppress("UNCHECKED_CAST")
                                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
                                     return GroupViewModel(groupDao) as T
                                 }
@@ -94,8 +98,13 @@ class MainActivity : ComponentActivity() {
 
                         AddGroupScreen(
                             onGroupCreated = { payload ->
-                                // Nur speichern, NICHT schließen!
-                                groupViewModel.addGroup(payload.name, payload.currency)
+                                userProfile?.let { profile ->
+                                    groupViewModel.addGroup(
+                                        payload = payload,
+                                        myName = profile.name,
+                                        myPublicKey = profile.publicKeyHex
+                                    )
+                                }
                             },
                             onBack = {
                                 navController.popBackStack()

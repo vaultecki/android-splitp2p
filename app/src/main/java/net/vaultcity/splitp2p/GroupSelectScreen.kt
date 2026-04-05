@@ -96,15 +96,26 @@ class GroupViewModel(private val groupDao: GroupDao) : ViewModel() {
     val allGroups = groupDao.getAllGroupsFlow()
 
     // Hier gehört die Funktion hin!
-    fun addGroup(name: String, currency: String) {
+    fun addGroup(payload: GroupJoinPayload, myName: String, myPublicKey: String) {
         viewModelScope.launch {
             val newGroup = GroupInfo(
-                group_id = java.util.UUID.randomUUID().toString(),
-                name = name,
-                currency = currency,
-                group_key = java.util.UUID.randomUUID().toString().replace("-", "")
+                group_id = payload.i,
+                name = payload.n,
+                currency = payload.c,
+                group_key = payload.k
             )
             groupDao.insertGroup(newGroup)
+
+            // 2. Dich selbst als ersten User der Gruppe hinzufügen
+            val selfAsUser = User(
+                public_key = myPublicKey,
+                name = myName,
+                timestamp = System.currentTimeMillis(),
+                group_id = payload.i,
+                lamport_clock = 0,
+                signature = "" // Hier kommt später die Signatur mit dem Group-Key rein
+            )
+            groupDao.insertUser(selfAsUser)
         }
     }
 }
