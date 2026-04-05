@@ -152,19 +152,8 @@ class GroupViewModel(private val groupDao: GroupDao) : ViewModel() {
             )
             groupDao.insertGroup(newGroup)
 
-            // Deterministischen JSON String für die Signatur bauen
+            // TODO fix lamport
             val lamportStart: Long = 0
-            val signJson = createSignatureJson(
-                publicKey = myPublicKey,
-                groupId = payload.id,
-                name = myName,
-                lamport = lamportStart
-            )
-
-            Log.d("Crypto", "Json String to sign: $signJson")
-
-            // 3Signieren mit dem Hardware-Key
-            val mySignature = signJsonWithKeystore("SplitP2PUser", signJson)
 
             // In die users-Tabelle schreiben
             val selfAsUser = User(
@@ -173,9 +162,13 @@ class GroupViewModel(private val groupDao: GroupDao) : ViewModel() {
                 timestamp = System.currentTimeMillis(),
                 group_id = payload.id,
                 lamport_clock = lamportStart,
-                signature = mySignature
+                signature = ""
             )
-            groupDao.insertUser(selfAsUser)
+            val signJson = String(userCanonicalBytes(selfAsUser))
+            Log.d("Crypto", "Json String to sign: $signJson")
+            val mySignature = signJsonWithKeystore("SplitP2PUser", signJson)
+
+            groupDao.insertUser(selfAsUser.copy(signature = mySignature))
         }
     }
 

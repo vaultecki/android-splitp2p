@@ -81,7 +81,7 @@ data class Comment(
     val belongs_to: String,      // ID der Expense oder des Settlements
     val group_id: String,        // Optional, aber hilfreich für Performance
     val author_pubkey: String,
-    val comment_text: String,
+    val comment: String,
     val timestamp: Long,
     val is_deleted: Long = 0,
     val lamport_clock: Long,
@@ -94,8 +94,10 @@ data class Attachment(
     val belongs_to: String,
     val group_id: String,
     val author_pubkey: String,
-    val file_path: String,       // Pfad zum lokalen Speicher
-    val file_type: String,       // mime-type
+    val mime: String,
+    val size: Long,
+    val sha256: String,
+    val filename: String,
     val timestamp: Long,
     val lamport_clock: Long,
     val is_stored: Long = 0,

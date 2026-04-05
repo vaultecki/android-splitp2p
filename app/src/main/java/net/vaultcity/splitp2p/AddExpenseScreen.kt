@@ -122,7 +122,7 @@ class AddExpenseViewModel(
 
             // 2. Signieren (Deterministisches JSON erzeugen)
             // Hier nutzt du eine Hilfsfunktion ähnlich wie createSignatureJson
-            val jsonToSign = createExpenseSignatureJson(expense)
+            val jsonToSign = String(expenseCanonicalBytes(expense))
             val signature = signJsonWithKeystore("SplitP2PUser", jsonToSign)
 
             // 3. Mit Signatur speichern
@@ -144,7 +144,7 @@ class AddExpenseViewModel(
                     signature = ""
                 )
 
-                val splitJson = createSplitSignatureJson(splitData)
+                val splitJson = String(splitCanonicalBytes(splitData))
 
                 val splitSig = signJsonWithKeystore(keyAlias, splitJson)
 
@@ -152,43 +152,6 @@ class AddExpenseViewModel(
             }
         }
     }
-}
-
-fun createSplitSignatureJson(splitData: Split): String {
-    val splitJson = buildJsonObject {
-        put("id", splitData.id)
-        put("belongs_to", splitData.belongs_to)
-        put("payer_key", splitData.payer_key)
-        put("debtor_key", splitData.debtor_key)
-        put("amount", splitData.amount)
-        put("author_pubkey", splitData.author_pubkey)
-        put("lamport_clock", splitData.lamport_clock)
-        put("timestamp", splitData.timestamp)
-    }
-    return splitJson.toString()
-}
-
-// Funktion um das deterministische JSON zu erzeugen
-fun createExpenseSignatureJson(expense: Expense): String {
-    val jsonObject = buildJsonObject {
-        // Wir nutzen die expliziten Typ-Methoden, um die Inferenz-Fehler zu umgehen
-        put("id", expense.id as String)
-        put("group_id", expense.group_id as String)
-        put("timestamp", expense.timestamp as Number)
-        put("expense_date", expense.expense_date as Number)
-        put("lamport_clock", expense.lamport_clock as Number)
-        put("author_pubkey", expense.author_pubkey as String)
-        put("amount", expense.amount as Number)
-        put("is_deleted", expense.is_deleted as Number)
-        put("description", expense.description as String)
-        put("category", expense.category as String)
-        put("original_amount", expense.original_amount as Number)
-        put("original_currency", expense.original_currency as String)
-    }
-
-    // Für JsonElements (wie JsonObject) ist .toString() der korrekte Weg,
-    // um ein kompaktes JSON ohne Leerzeichen zu erhalten.
-    return jsonObject.toString()
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
