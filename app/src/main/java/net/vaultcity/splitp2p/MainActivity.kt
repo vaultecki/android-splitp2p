@@ -82,7 +82,7 @@ class MainActivity : ComponentActivity() {
                                 navController.navigate("group_detail/$groupId")
                             },
                             onAddGroup = { navController.navigate("add_group") },
-                            onJoinGroup = { /* Navigation zu JoinGroup */ }
+                            onJoinGroup = { navController.navigate("join_group") }
                         )
                     }
 
@@ -108,6 +108,30 @@ class MainActivity : ComponentActivity() {
                             },
                             onBack = {
                                 navController.popBackStack()
+                            }
+                        )
+                    }
+
+                    composable("join_group") {
+                        val groupDao = db.groupDao()
+                        val groupViewModel = viewModel<GroupViewModel>(
+                            factory = object : ViewModelProvider.Factory {
+                                override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                                    return GroupViewModel(groupDao) as T
+                                }
+                            }
+                        )
+
+                        JoinGroupScreen(
+                            onNavigateBack = { navController.popBackStack() },
+                            onGroupJoined = { payload ->
+                                userProfile?.let { profile ->
+                                    groupViewModel.addGroup(
+                                        payload = payload,
+                                        myName = profile.name,
+                                        myPublicKey = profile.publicKeyHex
+                                    )
+                                }
                             }
                         )
                     }
