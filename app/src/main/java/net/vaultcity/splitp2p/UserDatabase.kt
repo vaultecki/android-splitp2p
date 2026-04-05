@@ -22,7 +22,18 @@ interface UserProfileDao {
 }
 
 // 3. Die Datenbank-Zentrale
-@Database(entities = [UserProfile::class], version = 1)
+@Database(
+    entities = [
+        UserProfile::class,
+        GroupInfo::class,   // Neu
+        User::class,        // Neu
+        Expense::class,     // Neu
+        Split::class,       // Neu
+        Settlement::class   // Neu
+    ],
+    version = 2 // WICHTIG: Version auf 2 erhöhen!
+)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun userProfileDao(): UserProfileDao
+    abstract fun groupDao(): GroupDao // Die abstrakte Methode für das neue DAO
 }
