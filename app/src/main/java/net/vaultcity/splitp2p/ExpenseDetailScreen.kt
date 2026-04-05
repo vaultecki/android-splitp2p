@@ -1,5 +1,6 @@
 package net.vaultcity.splitp2p
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -36,21 +37,30 @@ fun ExpenseDetailScreen(
     groupDao: GroupDao,
     onBack: () -> Unit
 ) {
-    // Daten laden
     val detailData by produceState<ExpenseDetailData?>(initialValue = null, expenseId) {
         value = groupDao.getExpenseWithSplitsAndComments(expenseId)
     }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(detailData?.expense?.description ?: "Details") },
+            CenterAlignedTopAppBar(
+                title = { Text("Ausgabe hinzufügen", fontWeight = FontWeight.Bold, color = Color.White) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Zurück")
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Zurück", tint = Color.White)
                     }
-                }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = Color(0xFF4CAF50)
+                )
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(onClick = {
+                onBack()
+            }) {
+                Icon(Icons.Default.Add, contentDescription = "Ausgabe hinzufügen", tint = Color.White)
+            }
         }
     ) { padding ->
         detailData?.let { data ->
@@ -60,77 +70,73 @@ fun ExpenseDetailScreen(
                     .padding(16.dp)
                     .fillMaxSize()
             ) {
-                // 1. Karte mit dem Gesamtbetrag
+                // Info-Karte
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Gesamtbetrag der Ausgabe", style = MaterialTheme.typography.labelMedium)
-                        Text("${data.expense.amount / 100.0} €", style = MaterialTheme.typography.headlineMedium)
-                        Text("Erstellt am: ${formatDate(data.expense.timestamp)}", style = MaterialTheme.typography.bodySmall)
+                        Text("Gesamtbetrag", style = MaterialTheme.typography.labelMedium)
+                        Text(
+                            "${data.expense.amount / 100.0} €",
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            "Erstellt am: ${formatDate(data.expense.timestamp)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // 2. Dein persönlicher Anteil
+                // Dein Anteil
                 val mySplit = data.splits.find { it.debtor_key == myPublicKey }
 
-                Text("Dein Anteil", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                Card(
+                Text("Dein Anteil", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+
+                Surface(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF4CAF50).copy(alpha = 0.5f))
+                    shape = MaterialTheme.shapes.medium,
+                    color = Color(0xFF4CAF50).copy(alpha = 0.1f),
+                    border = BorderStroke(1.dp, Color(0xFF4CAF50).copy(alpha = 0.5f))
                 ) {
                     Row(
                         modifier = Modifier.padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = if (mySplit != null) "${mySplit.amount / 100.0} €" else "0.00 €",
+                            text = if (mySplit != null) "${mySplit.amount / 100.0} €" else "Kein Anteil",
                             style = MaterialTheme.typography.headlineSmall,
-                            color = Color(0xFF4CAF50),
+                            color = Color(0xFF2E7D32),
                             modifier = Modifier.weight(1f)
                         )
                         if (data.expense.author_pubkey == myPublicKey) {
-                            SuggestionChip(onClick = {}, label = { Text("Du bist Ersteller") })
+                            SuggestionChip(
+                                onClick = {},
+                                label = { Text("Du bist Ersteller") },
+                                colors = SuggestionChipDefaults.suggestionChipColors(
+                                    labelColor = MaterialTheme.colorScheme.primary
+                                )
+                            )
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                // 3. Platzhalter für Kommentare
-                Text("Kommentare", fontWeight = FontWeight.Bold)
+                // Scrollbarer Bereich für Kommentare
+                Text("Kommentare", style = MaterialTheme.typography.titleSmall)
                 Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                     Text(
-                        "Kommentare und Anhänge folgen bald...",
+                        "Noch keine Kommentare vorhanden.",
                         modifier = Modifier.align(Alignment.Center),
-                        color = Color.Gray,
-                        style = MaterialTheme.typography.bodyMedium
+                        color = Color.Gray
                     )
-                }
-
-                // 4. Eingabezeile (Dummy)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedTextField(
-                        value = "",
-                        onValueChange = {},
-                        placeholder = { Text("Kommentar schreiben...") },
-                        modifier = Modifier.weight(1f),
-                        shape = androidx.compose.foundation.shape.CircleShape
-                    )
-                    FloatingActionButton(
-                        onClick = { /* Später: Comment speichern */ },
-                        modifier = Modifier.size(48.dp),
-                        containerColor = MaterialTheme.colorScheme.primaryContainer
-                    ) {
-                        Icon(Icons.Default.Check, contentDescription = "Senden")
-                    }
                 }
             }
         } ?: Box(modifier = Modifier.fillMaxSize()) {
