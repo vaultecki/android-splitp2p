@@ -25,13 +25,15 @@ interface UserProfileDao {
 @Database(
     entities = [
         UserProfile::class,
-        GroupInfo::class,   // Neu
-        User::class,        // Neu
-        Expense::class,     // Neu
-        Split::class,       // Neu
-        Settlement::class   // Neu
+        GroupInfo::class,
+        User::class,
+        Expense::class,
+        Split::class,
+        Settlement::class,
+        Comment::class,
+        Attachment::class
     ],
-    version = 4 // WICHTIG: Version auf 2 erhöhen!
+    version = 5 // WICHTIG: Version erhöhen!
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun userProfileDao(): UserProfileDao

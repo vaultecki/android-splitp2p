@@ -73,6 +73,33 @@ data class GroupInfo(
     val group_key: String // Hex-String aus Python
 )
 
+@Entity(tableName = "comments_user")
+data class Comment(
+    @PrimaryKey val id: String,
+    val belongs_to: String,      // ID der Expense oder des Settlements
+    val belongs_to_type: String, // "expense" oder "settlement"
+    val group_id: String,        // Optional, aber hilfreich für Performance
+    val author_pubkey: String,
+    val comment_text: String,
+    val timestamp: Long,
+    val lamport_clock: Long,
+    val signature: String
+)
+
+@Entity(tableName = "attachments")
+data class Attachment(
+    @PrimaryKey val id: String,
+    val belongs_to: String,
+    val belongs_to_type: String,
+    val group_id: String,
+    val author_pubkey: String,
+    val file_path: String,       // Pfad zum lokalen Speicher
+    val file_type: String,       // mime-type
+    val timestamp: Long,
+    val lamport_clock: Long,
+    val signature: String
+)
+
 @Dao
 interface GroupDao {
     @Query("SELECT * FROM group_info ORDER BY name ASC")
@@ -131,9 +158,9 @@ interface GroupDao {
 
     @Query("""
     SELECT MAX(a.lamport_clock)
-    FROM attachments c
-    LEFT JOIN expenses e ON c.belongs_to = e.id AND c.belongs_to_type = 'expense'
-    LEFT JOIN settlements s ON c.belongs_to = s.id AND c.belongs_to_type = 'settlement'
+    FROM attachments a
+    LEFT JOIN expenses e ON a.belongs_to = e.id AND a.belongs_to_type = 'expense'
+    LEFT JOIN settlements s ON a.belongs_to = s.id AND a.belongs_to_type = 'settlement'
     WHERE e.group_id = :groupId OR s.group_id = :groupId
     """)
     suspend fun getMaxLamportAttachments(groupId: String): Long?
