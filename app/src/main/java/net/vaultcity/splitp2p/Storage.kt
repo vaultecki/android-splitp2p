@@ -1,11 +1,13 @@
 package net.vaultcity.splitp2p
 
 import androidx.room.Dao
+import androidx.room.Embedded
 import androidx.room.Entity
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.PrimaryKey
 import androidx.room.Query
+import androidx.room.Relation
 import kotlinx.coroutines.flow.Flow
 
 @Entity(
@@ -172,4 +174,22 @@ interface GroupDao {
         WHERE e.group_id = :groupId
     """)
     suspend fun getMaxLamportSplits(groupId: String): Long?
+
+    @androidx.room.Transaction
+    @Query("SELECT * FROM expenses WHERE id = :expenseId")
+    suspend fun getExpenseWithSplitsAndComments(expenseId: String): ExpenseDetailData?
 }
+
+data class ExpenseDetailData(
+    @Embedded val expense: Expense,
+    @Relation(
+        parentColumn = "id",
+        entityColumn = "belongs_to"
+    )
+    val splits: List<Split>,
+    @Relation(
+        parentColumn = "id",
+        entityColumn = "belongs_to"
+    )
+    val comments: List<Comment>
+)
