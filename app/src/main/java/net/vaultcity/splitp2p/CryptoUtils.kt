@@ -52,11 +52,11 @@ fun generateKeystoreEd25519(alias: String) {
 
 fun getPublicKeyAsHex(alias: String): String {
     val keyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
-    val certificate = keyStore.getCertificate(alias)
-    val publicKeyBytes = certificate.publicKey.encoded
+    val publicKeyBytes = keyStore.getCertificate(alias).publicKey.encoded
 
-    // Wir nutzen hier eine einfache Hex-Konvertierung
-    return publicKeyBytes.joinToString("") { "%02x".format(it) }
+    // Ed25519 DER = 12 Byte Header + 32 Byte Raw Key - Letzten 32 Bytes sind der eigentliche Key
+    val rawKey = publicKeyBytes.takeLast(32).toByteArray()
+    return rawKey.joinToString("") { "%02x".format(it) }
 }
 
 fun signJsonWithKeystore(alias: String, jsonString: String): String {

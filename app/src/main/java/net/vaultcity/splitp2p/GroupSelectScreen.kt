@@ -145,10 +145,10 @@ class GroupViewModel(private val groupDao: GroupDao) : ViewModel() {
     fun addGroup(payload: GroupJoinPayload, myName: String, myPublicKey: String) {
         viewModelScope.launch {
             val newGroup = GroupInfo(
-                group_id = payload.i,
-                name = payload.n,
-                currency = payload.c,
-                group_key = payload.k
+                group_id = payload.id,
+                name = payload.name,
+                currency = payload.cur,
+                group_key = payload.key
             )
             groupDao.insertGroup(newGroup)
 
@@ -156,7 +156,7 @@ class GroupViewModel(private val groupDao: GroupDao) : ViewModel() {
             val lamportStart: Long = 0
             val signJson = createSignatureJson(
                 publicKey = myPublicKey,
-                groupId = payload.i,
+                groupId = payload.id,
                 name = myName,
                 lamport = lamportStart
             )
@@ -171,7 +171,7 @@ class GroupViewModel(private val groupDao: GroupDao) : ViewModel() {
                 public_key = myPublicKey,
                 name = myName,
                 timestamp = System.currentTimeMillis(),
-                group_id = payload.i,
+                group_id = payload.id,
                 lamport_clock = lamportStart,
                 signature = mySignature
             )

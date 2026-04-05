@@ -73,7 +73,7 @@ fun JoinGroupScreen(
                 onClick = {
                     try {
                         // TODO remove test string
-                        jsonInput = "{\"i\":\"test-uuid-12345\",\"n\":\"TestWG\",\"c\":\"USD\",\"k\":\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\",\"v\":1}"
+                        jsonInput = "{\"id\":\"test-uuid-12345\",\"name\":\"TestWG\",\"cur\":\"USD\",\"key\":\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\",\"v\":1}"
                         // 1. JSON in das bestehende Objekt parsen
                         val payload = Json.decodeFromString<GroupJoinPayload>(jsonInput)
 

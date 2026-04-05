@@ -164,17 +164,30 @@ class MainActivity : ComponentActivity() {
                         val groupId = backStackEntry.arguments?.getString("groupId") ?: return@composable
                         val userProfile by db.userProfileDao().getUserProfile().collectAsState(initial = null)
 
-                        AddExpenseScreen(
-                            onBack = { navController.popBackStack() },
-                            onSave = { desc, amount ->
-                                userProfile?.let { profile ->
-                                    // Hier das ViewModel aufrufen (oder direkt über eine Factory)
-                                    val vm = AddExpenseViewModel(db.groupDao(), groupId, profile.publicKeyHex)
+                        userProfile?.let { profile ->
+                            // 1. ViewModel mit Factory initialisieren, damit groupId und Keys korrekt übergeben werden
+                            val vm: AddExpenseViewModel = viewModel(
+                                factory = object : ViewModelProvider.Factory {
+                                    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                                        return AddExpenseViewModel(
+                                            groupDao = db.groupDao(),
+                                            groupId = groupId,
+                                            myPublicKey = profile.publicKeyHex
+                                        ) as T
+                                    }
+                                }
+                            )
+
+                            // 2. Den Screen aufrufen und das erstellte ViewModel übergeben
+                            AddExpenseScreen(
+                                viewModel = vm, // <--- Das löst den "No value passed" Fehler
+                                onBack = { navController.popBackStack() },
+                                onSave = { desc, amount ->
                                     vm.saveExpense(desc, amount)
                                     navController.popBackStack()
                                 }
-                            }
-                        )
+                            )
+                        }
                     }
 
                     composable("main") {

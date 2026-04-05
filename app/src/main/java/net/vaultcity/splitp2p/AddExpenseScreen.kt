@@ -16,6 +16,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -78,14 +79,15 @@ class AddExpenseViewModel(
         }
     }
 
+    // Wir nutzen ein MutableState, um die Liste in der UI beobachtbar zu machen
     private val _memberSplits = mutableStateOf<List<MemberSplitState>>(emptyList())
     val memberSplits: State<List<MemberSplitState>> = _memberSplits
 
-    fun loadMembers() {
+    // ÄNDERUNG: totalAmount als Parameter hinzufügen
+    fun loadMembers(totalAmount: Long) {
         viewModelScope.launch {
             groupDao.getUsersForGroupFlow(groupId).collect { users ->
                 _memberSplits.value = users.map { user ->
-                    // Standardmäßig: Ich selbst bin ausgewählt
                     val isMe = user.public_key == myPublicKey
                     MemberSplitState(
                         publicKey = user.public_key,
@@ -93,9 +95,38 @@ class AddExpenseViewModel(
                         isSelected = isMe
                     )
                 }
-                //recalculateSplits(totalAmountInCents) // Initiale Berechnung
+                recalculateSplits(totalAmount) // Jetzt mit dem übergebenen Wert
             }
         }
+    }
+
+    fun updateManualAmount(index: Int, newAmountInCents: Long, totalAmount: Long) {
+        val currentList = _memberSplits.value.toMutableList()
+        val split = currentList[index]
+        if (!split.isSelected) return
+
+        // 1. Den geänderten Wert setzen
+        currentList[index] = split.copy(
+            amountInCents = newAmountInCents,
+            amountText = (newAmountInCents / 100.0).toString(),
+            percentage = if (totalAmount > 0) newAmountInCents.toFloat() / totalAmount else 0f
+        )
+
+        // 2. Differenz auf andere ausgewählte Mitglieder verteilen
+        val remainingAmount = totalAmount - newAmountInCents
+        val otherIndices = currentList.indices.filter { it != index && currentList[it].isSelected }
+
+        if (otherIndices.isNotEmpty()) {
+            val share = remainingAmount / otherIndices.size
+            otherIndices.forEach { i ->
+                currentList[i] = currentList[i].copy(
+                    amountInCents = share,
+                    amountText = (share / 100.0).toString(),
+                    percentage = if (totalAmount > 0) share.toFloat() / totalAmount else 0f
+                )
+            }
+        }
+        _memberSplits.value = currentList
     }
 
     fun toggleMember(publicKey: String, totalAmount: Long) {
@@ -148,11 +179,21 @@ fun createExpenseSignatureJson(expense: Expense): String {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddExpenseScreen(
+    viewModel: AddExpenseViewModel, // Hier das ViewModel hinzufügen!
     onBack: () -> Unit,
     onSave: (description: String, amountInCents: Long) -> Unit
 ) {
     var description by remember { mutableStateOf("") }
     var amountText by remember { mutableStateOf("") }
+    val totalAmountInCents = parseAmountToCents(amountText)
+
+    // Zugriff auf den State des ViewModels
+    val currentMemberSplits by viewModel.memberSplits
+
+    // Initiales Laden: totalAmountInCents mitgeben
+    LaunchedEffect(Unit) {
+        viewModel.loadMembers(totalAmountInCents)
+    }
 
     Scaffold(
         topBar = {
@@ -216,11 +257,19 @@ fun AddExpenseScreen(
                 singleLine = true
             )
 
-            Text(
-                text = "Die Ausgabe wird zu gleichen Teilen auf alle Gruppenmitglieder aufgeteilt.",
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
-            )
+            // split amount
+            Text("Aufteilung:", fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 16.dp))
+            //
+            currentMemberSplits.forEachIndexed { index, split ->
+                MemberSplitRow(
+                    member = split,
+                    totalAmount = totalAmountInCents,
+                    onToggle = { viewModel.toggleMember(split.publicKey, totalAmountInCents) },
+                    onAmountChange = { newCents ->
+                        viewModel.updateManualAmount(index, newCents, totalAmountInCents)
+                    }
+                )
+            }
         }
     }
 }
@@ -241,39 +290,36 @@ fun parseAmountToCents(input: String): Long {
 @Composable
 fun MemberSplitRow(
     member: MemberSplitState,
+    totalAmount: Long,
     onToggle: () -> Unit,
-    totalAmount: Long
+    onAmountChange: (Long) -> Unit // Neu hinzufügen
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Checkbox(checked = member.isSelected, onCheckedChange = { onToggle() })
 
-        Text(
-            text = member.name,
-            modifier = Modifier.weight(1f),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
+        Text(member.name, modifier = Modifier.weight(1f), maxLines = 1)
 
-        // Slider (deaktiviert, wenn nicht ausgewählt)
         Slider(
-            value = member.percentage,
-            onValueChange = { /* Später für manuellen Split */ },
+            value = member.amountInCents.toFloat(), // Nutzt jetzt den Cent-Wert für den Slider
+            onValueChange = { onAmountChange(it.toLong()) },
+            valueRange = 0f..(if (totalAmount > 0) totalAmount.toFloat() else 1f),
             modifier = Modifier.weight(1.5f).padding(horizontal = 8.dp),
             enabled = member.isSelected
         )
 
-        // Betrags-Box
         OutlinedTextField(
-            value = (member.amountInCents / 100.0).toString(),
-            onValueChange = {},
-            readOnly = true, // Erstmal nur Anzeige für Auto-Split
-            modifier = Modifier.width(80.dp),
-            suffix = { Text("€") },
+            value = member.amountText,
+            onValueChange = { input ->
+                val cents = parseAmountToCents(input)
+                onAmountChange(cents)
+            },
+            modifier = Modifier.width(90.dp),
+            enabled = member.isSelected,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            singleLine = true,
             textStyle = MaterialTheme.typography.bodySmall
         )
     }
@@ -284,7 +330,8 @@ data class MemberSplitState(
     val name: String,
     val isSelected: Boolean = false,
     val amountInCents: Long = 0,
-    val percentage: Float = 0f
+    val percentage: Float = 0f,
+    val amountText: String = "0.00" // Neu für flüssiges Tippen
 )
 
 

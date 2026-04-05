@@ -53,11 +53,11 @@ import java.util.UUID
 // Hilfsklasse für das JSON Payload
 @Serializable
 data class GroupJoinPayload(
-    val i: String, //id
-    val n: String, //name
-    val c: String, //currency
-    val k: String, //key
-    val v: Long    //version
+    val id:   String,  //id
+    val name: String,  //name
+    val cur:  String,  //currency
+    val key:  String,  //key
+    val v:    Long     //version
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -160,13 +160,15 @@ fun AddGroupScreen(
                             // Lazysodium kurz initialisieren
                             val sodium = SodiumAndroid()
                             val ls = LazySodiumAndroid(sodium)
+                            // get key bytes
+                            val keyBytes = ls.randomBytesBuf(32)
                             // Daten generieren
                             val payload = GroupJoinPayload(
-                                i = UUID.randomUUID().toString(),
-                                n = groupName,
-                                c = selectedCurrency,
+                                id = UUID.randomUUID().toString(),
+                                name = groupName,
+                                cur = selectedCurrency,
                                 // Simpler Hex-Key Platzhalter
-                                k = ls.nonce(32).toHexString(),
+                                key = keyBytes.toHexString(),
                                 v = 1
                             )
                             // In JSON verwandeln

@@ -21,43 +21,75 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OnboardingScreen(onFinished: (String) -> Unit) {
     var userName by remember { mutableStateOf("SplitP2PUser") }
     val keyAlias = "SplitP2PUser"
 
-    Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(text = "Willkommen bei SplitP2P", style = MaterialTheme.typography.headlineMedium)
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(text = "Wähle einen Namen, unter dem dich andere Peers sehen können.")
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        OutlinedTextField(
-            value = userName,
-            onValueChange = { userName = it },
-            label = { Text("Dein Name") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        Button(
-            onClick = {
-                // 1. Hardware-Key im Keystore erzeugen
-                generateKeystoreEd25519(keyAlias)
-                // 2. Callback mit dem Namen (um ihn z.B. in Room zu speichern)
-                onFinished(userName)
-            },
-            enabled = userName.isNotBlank(), // Button sperren wenn leer
-            modifier = Modifier.fillMaxWidth()
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = {
+                    Text("Welcome", fontWeight = FontWeight.Bold, color = Color.White)
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = Color(0xFF4CAF50) // Das gewohnte Grün
+                )
+            )
+        },
+        bottomBar = {
+            // Der Button sitzt jetzt im Footer-Bereich
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shadowElevation = 8.dp
+            ) {
+                Button(
+                    onClick = {
+                        generateKeystoreEd25519(keyAlias)
+                        onFinished(userName)
+                    },
+                    enabled = userName.isNotBlank(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp) // Abstand zum Rand im Footer
+                ) {
+                    Text("Profil erstellen")
+                }
+            }
+        }
+    ) { paddingValues ->
+        // Der eigentliche Inhalt
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(24.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("Profil erstellen")
+            Text(
+                text = "Willkommen bei SplitP2P",
+                style = MaterialTheme.typography.headlineMedium
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = "Wähle einen Namen, unter dem dich andere Peers sehen können.",
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            OutlinedTextField(
+                value = userName,
+                onValueChange = { userName = it },
+                label = { Text("Dein Name") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
