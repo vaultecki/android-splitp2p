@@ -36,8 +36,8 @@ fun ExpenseDetailScreen(
     groupDao: GroupDao,
     onBack: () -> Unit
 ) {
-    // Hier laden wir die Daten direkt via Flow oder State
-    val detailData by produceState<ExpenseDetailData?>(initialValue = null) {
+    // Daten laden
+    val detailData by produceState<ExpenseDetailData?>(initialValue = null, expenseId) {
         value = groupDao.getExpenseWithSplitsAndComments(expenseId)
     }
 
@@ -54,44 +54,82 @@ fun ExpenseDetailScreen(
         }
     ) { padding ->
         detailData?.let { data ->
-            Column(modifier = Modifier.padding(padding).padding(16.dp)) {
-                // 1. Header: Gesamtbetrag
-                Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+            Column(
+                modifier = Modifier
+                    .padding(padding)
+                    .padding(16.dp)
+                    .fillMaxSize()
+            ) {
+                // 1. Karte mit dem Gesamtbetrag
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Gesamtbetrag", style = MaterialTheme.typography.labelMedium)
+                        Text("Gesamtbetrag der Ausgabe", style = MaterialTheme.typography.labelMedium)
                         Text("${data.expense.amount / 100.0} €", style = MaterialTheme.typography.headlineMedium)
+                        Text("Erstellt am: ${formatDate(data.expense.timestamp)}", style = MaterialTheme.typography.bodySmall)
                     }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // 2. Dein Anteil (Nur für dich relevant)
-                val mySplit = data.splits.find { it.debtor_key == myPublicKey }
-                if (mySplit != null) {
-                    Text("Dein Anteil", fontWeight = FontWeight.Bold)
-                    Text("${mySplit.amount / 100.0} €", style = MaterialTheme.typography.titleLarge, color = Color(0xFF4CAF50))
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // 3. Sektionen für später (Platzhalter)
-                Text("Kommentare (${data.comments.size})", fontWeight = FontWeight.Bold)
+                // 2. Dein persönlicher Anteil
+                val mySplit = data.splits.find { it.debtor_key == myPublicKey }
 
-                // Hier kommt später die LazyColumn für Kommentare hin
-                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                    Text("Noch keine Kommentare...", modifier = Modifier.align(Alignment.Center), color = Color.Gray)
+                Text("Dein Anteil", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF4CAF50).copy(alpha = 0.5f))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (mySplit != null) "${mySplit.amount / 100.0} €" else "0.00 €",
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = Color(0xFF4CAF50),
+                            modifier = Modifier.weight(1f)
+                        )
+                        if (data.expense.author_pubkey == myPublicKey) {
+                            SuggestionChip(onClick = {}, label = { Text("Du bist Ersteller") })
+                        }
+                    }
                 }
 
-                // 4. Quick-Action Bar für Anhänge/Kommentare
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // 3. Platzhalter für Kommentare
+                Text("Kommentare", fontWeight = FontWeight.Bold)
+                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    Text(
+                        "Kommentare und Anhänge folgen bald...",
+                        modifier = Modifier.align(Alignment.Center),
+                        color = Color.Gray,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+
+                // 4. Eingabezeile (Dummy)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     OutlinedTextField(
                         value = "",
                         onValueChange = {},
-                        placeholder = { Text("Kommentar...") },
-                        modifier = Modifier.weight(1f)
+                        placeholder = { Text("Kommentar schreiben...") },
+                        modifier = Modifier.weight(1f),
+                        shape = androidx.compose.foundation.shape.CircleShape
                     )
-                    IconButton(onClick = { /* Foto machen */ }) {
-                        Icon(Icons.Default.Add, contentDescription = "Anhang")
+                    FloatingActionButton(
+                        onClick = { /* Später: Comment speichern */ },
+                        modifier = Modifier.size(48.dp),
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    ) {
+                        Icon(Icons.Default.Check, contentDescription = "Senden")
                     }
                 }
             }
@@ -99,4 +137,10 @@ fun ExpenseDetailScreen(
             CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
         }
     }
+}
+
+// Einfache Hilfsfunktion für das Datum
+fun formatDate(timestamp: Long): String {
+    val sdf = java.text.SimpleDateFormat("dd.MM.yyyy HH:mm", java.util.Locale.getDefault())
+    return sdf.format(java.util.Date(timestamp))
 }
