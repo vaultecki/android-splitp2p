@@ -1,5 +1,6 @@
 package net.vaultcity.splitp2p
 
+import android.util.Log
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -13,6 +14,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
+//
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.buildJsonObject
 
 @OptIn(ExperimentalMaterial3Api::class) // Notwendig für CenterAlignedTopAppBar
 @Composable
@@ -106,16 +111,57 @@ class GroupViewModel(private val groupDao: GroupDao) : ViewModel() {
             )
             groupDao.insertGroup(newGroup)
 
-            // 2. Dich selbst als ersten User der Gruppe hinzufügen
+            // Deterministischen JSON String für die Signatur bauen
+            val lamportStart = 0
+            val signJson = createSignatureJson(
+                publicKey = myPublicKey,
+                groupId = payload.i,
+                name = myName,
+                lamport = lamportStart
+            )
+
+            Log.d("Crypto", "Json String to sign: $signJson")
+
+            // 3Signieren mit dem Hardware-Key
+            val mySignature = signJsonWithKeystore("SplitP2PUser", signJson)
+
+            // In die users-Tabelle schreiben
             val selfAsUser = User(
                 public_key = myPublicKey,
                 name = myName,
                 timestamp = System.currentTimeMillis(),
                 group_id = payload.i,
-                lamport_clock = 0,
-                signature = "" // Hier kommt später die Signatur mit dem Group-Key rein
+                lamport_clock = lamportStart,
+                signature = mySignature
             )
             groupDao.insertUser(selfAsUser)
         }
     }
+
+    fun deleteGroup(groupId: String) {
+        viewModelScope.launch {
+            // Ggf. hier noch Logik, um deinen eigenen public_key aus der users-Tabelle für diese Gruppe zu löschen
+            groupDao.deleteGroupById(groupId)
+            // TODO delete from user table
+            // TODO delete from expense table -> delete split, comment, attachment
+            // TODO delete from settlement table -> delete split, comment, attachment
+        }
+    }
 }
+
+
+// Funktion um das deterministische JSON zu erzeugen
+fun createSignatureJson(publicKey: String, groupId: String, name: String, lamport: Int): String {
+    val jsonObject = buildJsonObject {
+        // Wir nutzen die expliziten Typ-Methoden, um die Inferenz-Fehler zu umgehen
+        put("group_id", groupId as String)
+        put("lamport_clock", lamport as Number)
+        put("name", name as String)
+        put("public_key", publicKey as String)
+    }
+
+    // Für JsonElements (wie JsonObject) ist .toString() der korrekte Weg,
+    // um ein kompaktes JSON ohne Leerzeichen zu erhalten.
+    return jsonObject.toString()
+}
+

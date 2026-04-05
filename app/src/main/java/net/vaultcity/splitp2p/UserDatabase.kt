@@ -31,7 +31,7 @@ interface UserProfileDao {
         Split::class,       // Neu
         Settlement::class   // Neu
     ],
-    version = 2 // WICHTIG: Version auf 2 erhöhen!
+    version = 4 // WICHTIG: Version auf 2 erhöhen!
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun userProfileDao(): UserProfileDao

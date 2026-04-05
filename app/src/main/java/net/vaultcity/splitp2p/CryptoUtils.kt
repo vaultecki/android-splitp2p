@@ -4,6 +4,7 @@ import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import java.security.KeyPairGenerator
 import java.security.KeyStore
+import java.security.Signature
 
 
 fun hasIdentityKey(alias: String): Boolean {
@@ -56,4 +57,17 @@ fun getPublicKeyAsHex(alias: String): String {
 
     // Wir nutzen hier eine einfache Hex-Konvertierung
     return publicKeyBytes.joinToString("") { "%02x".format(it) }
+}
+
+fun signJsonWithKeystore(alias: String, jsonString: String): String {
+    val keyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+    val privateKey = keyStore.getKey(alias, null) as java.security.PrivateKey
+
+    val signature = Signature.getInstance("Ed25519").run {
+        initSign(privateKey)
+        update(jsonString.toByteArray(Charsets.UTF_8))
+        sign()
+    }
+
+    return signature.joinToString("") { "%02x".format(it) }
 }
