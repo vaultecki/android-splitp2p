@@ -155,7 +155,24 @@ class MainActivity : ComponentActivity() {
                             viewModel = detailViewModel,
                             onBack = { navController.popBackStack() },
                             onAddExpense = {
-                                // Hier später: navController.navigate("add_expense/$groupId")
+                                navController.navigate("add_expense/$groupId")
+                            }
+                        )
+                    }
+
+                    composable("add_expense/{groupId}") { backStackEntry ->
+                        val groupId = backStackEntry.arguments?.getString("groupId") ?: return@composable
+                        val userProfile by db.userProfileDao().getUserProfile().collectAsState(initial = null)
+
+                        AddExpenseScreen(
+                            onBack = { navController.popBackStack() },
+                            onSave = { desc, amount ->
+                                userProfile?.let { profile ->
+                                    // Hier das ViewModel aufrufen (oder direkt über eine Factory)
+                                    val vm = AddExpenseViewModel(db.groupDao(), groupId, profile.publicKeyHex)
+                                    vm.saveExpense(desc, amount)
+                                    navController.popBackStack()
+                                }
                             }
                         )
                     }

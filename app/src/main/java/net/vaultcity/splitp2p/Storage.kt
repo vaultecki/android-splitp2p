@@ -98,4 +98,13 @@ interface GroupDao {
 
     @Query("SELECT * FROM users WHERE group_id = :groupId")
     fun getUsersForGroupFlow(groupId: String): Flow<List<User>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertExpense(expense: Expense)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSplit(split: Split)
+
+    @Query("SELECT * FROM users WHERE group_id = :groupId")
+    suspend fun getUsersInGroup(groupId: String): List<User>
 }
