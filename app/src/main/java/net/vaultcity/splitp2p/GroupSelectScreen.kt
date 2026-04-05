@@ -18,8 +18,11 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.buildJsonObject
+//
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 
-@OptIn(ExperimentalMaterial3Api::class) // Notwendig für CenterAlignedTopAppBar
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class) // Erweitert um FoundationApi
 @Composable
 fun GroupSelectionScreen(
     viewModel: GroupViewModel,
@@ -27,8 +30,10 @@ fun GroupSelectionScreen(
     onAddGroup: () -> Unit,
     onJoinGroup: () -> Unit
 ) {
-    // Liste der Gruppen aus dem ViewModel beobachten
     val groups by viewModel.allGroups.collectAsState(initial = emptyList())
+
+    // State für den Bestätigungsdialog: Speichert die ID der zu löschenden Gruppe
+    var groupToDelete by remember { mutableStateOf<GroupInfo?>(null) }
 
     Scaffold(
         // --- Der neue grüne Balken oben ---
@@ -58,27 +63,64 @@ fun GroupSelectionScreen(
                 }
             }
         }
-    ) { paddingValues -> // paddingValues enthält den Platz, den TopBar und BottomBar einnehmen
+    ) { paddingValues ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues) // WICHTIG: Damit die Liste nicht unter den Balken verschwindet
+                .padding(paddingValues)
                 .padding(horizontal = 8.dp)
         ) {
             items(groups) { group ->
-                GroupCard(group = group, onClick = { onGroupSelected(group.group_id) })
+                GroupCard(
+                    group = group,
+                    onClick = { onGroupSelected(group.group_id) },
+                    onLongClick = { groupToDelete = group } // Setzt die Gruppe für den Dialog
+                )
             }
         }
     }
+
+    // Bestätigungsdialog
+    if (groupToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { groupToDelete = null },
+            title = { Text("Gruppe löschen?") },
+            text = { Text("Möchtest du '${groupToDelete?.name}' wirklich löschen? Alle lokalen Daten dieser Gruppe werden entfernt.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        groupToDelete?.let { viewModel.deleteGroup(it.group_id) }
+                        groupToDelete = null
+                    }
+                ) {
+                    Text("Löschen", color = Color.Red)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { groupToDelete = null }) {
+                    Text("Abbrechen")
+                }
+            }
+        )
+    }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun GroupCard(group: GroupInfo, onClick: () -> Unit) {
+fun GroupCard(
+    group: GroupInfo,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit // Neuer Parameter
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
-            .clickable(onClick = onClick),
+            // Hier der kombinierte Click-Modifier
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -87,7 +129,6 @@ fun GroupCard(group: GroupInfo, onClick: () -> Unit) {
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold
             )
-            // Optional: Währung anzeigen, falls hilfreich
             Text(
                 text = "Currency: ${group.currency}",
                 style = MaterialTheme.typography.bodyMedium,
@@ -112,7 +153,7 @@ class GroupViewModel(private val groupDao: GroupDao) : ViewModel() {
             groupDao.insertGroup(newGroup)
 
             // Deterministischen JSON String für die Signatur bauen
-            val lamportStart = 0
+            val lamportStart: Long = 0
             val signJson = createSignatureJson(
                 publicKey = myPublicKey,
                 groupId = payload.i,
@@ -151,7 +192,7 @@ class GroupViewModel(private val groupDao: GroupDao) : ViewModel() {
 
 
 // Funktion um das deterministische JSON zu erzeugen
-fun createSignatureJson(publicKey: String, groupId: String, name: String, lamport: Int): String {
+fun createSignatureJson(publicKey: String, groupId: String, name: String, lamport: Long): String {
     val jsonObject = buildJsonObject {
         // Wir nutzen die expliziten Typ-Methoden, um die Inferenz-Fehler zu umgehen
         put("group_id", groupId as String)
