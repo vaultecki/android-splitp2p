@@ -81,6 +81,7 @@ data class Comment(
     val author_pubkey: String,
     val comment_text: String,
     val timestamp: Long,
+    val is_deleted: Long = 0,
     val lamport_clock: Long,
     val signature: String
 )
@@ -95,6 +96,7 @@ data class Attachment(
     val file_type: String,       // mime-type
     val timestamp: Long,
     val lamport_clock: Long,
+    val is_stored: Long = 0,
     val signature: String
 )
 

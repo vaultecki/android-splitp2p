@@ -33,7 +33,7 @@ interface UserProfileDao {
         Comment::class,
         Attachment::class
     ],
-    version = 6 // WICHTIG: Version erhöhen!
+    version = 7 // WICHTIG: Version erhöhen!
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun userProfileDao(): UserProfileDao

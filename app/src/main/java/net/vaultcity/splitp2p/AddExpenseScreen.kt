@@ -100,6 +100,7 @@ class AddExpenseViewModel(
                 expense_date = now,
                 lamport_clock = currentExpenseLamport,
                 author_pubkey = myPublicKey,
+                is_deleted = 0,
                 amount = amountInCents,
                 description = description,
                 category = "General",
@@ -167,6 +168,7 @@ fun createExpenseSignatureJson(expense: Expense): String {
         put("lamport_clock", expense.lamport_clock as Number)
         put("author_pubkey", expense.author_pubkey as String)
         put("amount", expense.amount as Number)
+        put("is_deleted", expense.is_deleted as Number)
         put("description", expense.description as String)
         put("category", expense.category as String)
         put("original_amount", expense.original_amount as Number)
