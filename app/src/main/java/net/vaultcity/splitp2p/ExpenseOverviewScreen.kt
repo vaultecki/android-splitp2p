@@ -1,6 +1,7 @@
 package net.vaultcity.splitp2p
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -101,7 +102,8 @@ class ExpenseOverviewModel(private val groupDao: GroupDao, private val groupId: 
 fun ExpenseOverviewScreen(
     viewModel: ExpenseOverviewModel,
     onBack: () -> Unit,
-    onAddExpense: () -> Unit
+    onAddExpense: () -> Unit,
+    onExpenseClick: (String) -> Unit
 ) {
     val transactions: List<Transaction> by viewModel.allTransactions.collectAsState(initial = emptyList<Transaction>())
     val group by viewModel.groupInfo.collectAsState(initial = null)
@@ -131,7 +133,7 @@ fun ExpenseOverviewScreen(
         LazyColumn(modifier = Modifier.padding(padding).fillMaxSize()) {
             items(transactions) { transaction ->
                 when (transaction) {
-                    is Transaction.ExpenseItem -> ExpenseRow(transaction)
+                    is Transaction.ExpenseItem -> ExpenseRow(transaction, onExpenseClick)
                     is Transaction.SettlementItem -> SettlementRow(transaction)
                 }
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), thickness = 0.5.dp)
@@ -140,9 +142,19 @@ fun ExpenseOverviewScreen(
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-fun ExpenseRow(item: Transaction.ExpenseItem) {
+fun ExpenseRow(
+    item: Transaction.ExpenseItem,
+    onExpenseClick: (String) -> Unit
+) {
     ListItem(
+        modifier = Modifier.combinedClickable(
+            onClick = { onExpenseClick(item.expense.id) },
+            onLongClick = {
+                /* Später: Quick-Actions für Besitzer */
+            }
+        ),
         headlineContent = { Text(item.expense.description ?: "Unbekannte Ausgabe") },
         supportingContent = { Text("Bezahlt von ${item.authorName}") },
         trailingContent = {

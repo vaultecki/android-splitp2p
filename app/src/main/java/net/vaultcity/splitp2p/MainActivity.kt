@@ -156,6 +156,9 @@ class MainActivity : ComponentActivity() {
                             onBack = { navController.popBackStack() },
                             onAddExpense = {
                                 navController.navigate("add_expense/$groupId")
+                            },
+                            onExpenseClick = { expenseId ->
+                                navController.navigate("expense_details/$expenseId")
                             }
                         )
                     }
@@ -188,6 +191,20 @@ class MainActivity : ComponentActivity() {
                                 }
                             )
                         }
+                    }
+
+                    composable("expense_details/{expenseId}") { backStackEntry ->
+                        val expenseId = backStackEntry.arguments?.getString("expenseId") ?: return@composable
+
+                        // Wir holen uns den Key aus dem bereits beobachteten userProfile State
+                        val myPublicKey = userProfile?.publicKeyHex ?: ""
+
+                        ExpenseDetailScreen(
+                            expenseId = expenseId,
+                            myPublicKey = myPublicKey, // Dein Key aus dem UserProfile
+                            groupDao = db.groupDao(),
+                            onBack = { navController.popBackStack() }
+                        )
                     }
 
                     composable("main") {
