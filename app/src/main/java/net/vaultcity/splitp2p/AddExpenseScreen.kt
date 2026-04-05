@@ -281,10 +281,16 @@ fun AddExpenseScreen(
  * Hilfsfunktion, um Strings wie "12,50" sicher in 1250 (Long) zu wandeln.
  */
 fun parseAmountToCents(input: String): Long {
+    if (input.isBlank()) return 0L
+
+    // 1. Ersetze Komma durch Punkt und entferne alles, was keine Zahl oder Punkt ist
+    val sanitized = input.replace(",", ".").filter { it.isDigit() || it == '.' }
+
     return try {
-        val sanitized = input.replace(',', '.')
-        val doubleValue = sanitized.toDouble()
-        (doubleValue * 100).toLong()
+        val doubleValue = sanitized.toDoubleOrNull() ?: 0.0
+        // 2. Mit 100 multiplizieren und auf Long runden
+        // Math.round verhindert, dass 9.999999 zu 999 wird
+        Math.round(doubleValue * 100)
     } catch (e: Exception) {
         0L
     }
