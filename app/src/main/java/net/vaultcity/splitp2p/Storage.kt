@@ -107,4 +107,34 @@ interface GroupDao {
 
     @Query("SELECT * FROM users WHERE group_id = :groupId")
     suspend fun getUsersInGroup(groupId: String): List<User>
+
+    // Höchster Lamport für Ausgaben in DIESER Gruppe
+    @Query("SELECT MAX(lamport_clock) FROM expenses WHERE group_id = :groupId")
+    suspend fun getMaxLamportExpenses(groupId: String): Long?
+
+    // Höchster Lamport für Mitglieder-Updates in DIESER Gruppe
+    @Query("SELECT MAX(lamport_clock) FROM users WHERE group_id = :groupId")
+    suspend fun getMaxLamportUsers(groupId: String): Long?
+
+    // Höchster Lamport für Abrechnungen in DIESER Gruppe
+    @Query("SELECT MAX(lamport_clock) FROM settlements WHERE group_id = :groupId")
+    suspend fun getMaxLamportSettlements(groupId: String): Long?
+
+    @Query("""
+    SELECT MAX(c.lamport_clock)
+    FROM comments_user c
+    LEFT JOIN expenses e ON c.belongs_to = e.id AND c.belongs_to_type = 'expense'
+    LEFT JOIN settlements s ON c.belongs_to = s.id AND c.belongs_to_type = 'settlement'
+    WHERE e.group_id = :groupId OR s.group_id = :groupId
+    """)
+    suspend fun getMaxCommentLamport(groupId: String): Long?
+
+    @Query("""
+    SELECT MAX(a.lamport_clock)
+    FROM attachments c
+    LEFT JOIN expenses e ON c.belongs_to = e.id AND c.belongs_to_type = 'expense'
+    LEFT JOIN settlements s ON c.belongs_to = s.id AND c.belongs_to_type = 'settlement'
+    WHERE e.group_id = :groupId OR s.group_id = :groupId
+    """)
+    suspend fun getMaxLamportAttachments(groupId: String): Long?
 }
