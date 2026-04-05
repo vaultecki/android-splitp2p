@@ -1,6 +1,8 @@
 package net.vaultcity.splitp2p
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -17,6 +19,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -28,18 +33,72 @@ class AddExpenseViewModel(
     private val myPublicKey: String
 ) : ViewModel() {
 
+    private var currentExpenseLamport: Long = 0
+    private var splitLamport: Long = 0
+
+    private val _memberSplits = MutableStateFlow<List<MemberSplitState>>(emptyList())
+    val memberSplits: StateFlow<List<MemberSplitState>> = _memberSplits.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            currentExpenseLamport = groupDao.getMaxLamportExpenses(groupId) ?: 0L
+            splitLamport = groupDao.getMaxLamportSplits(groupId) ?: 0L
+            loadMembers()
+        }
+    }
+
+    private suspend fun loadMembers() {
+        val users = groupDao.getUsersInGroup(groupId)
+        _memberSplits.value = users.map {
+            MemberSplitState(publicKey = it.public_key, name = it.name)
+        }
+    }
+
+    fun toggleMember(index: Int) {
+        val newList = _memberSplits.value.toMutableList()
+        val member = newList[index]
+        newList[index] = member.copy(isSelected = !member.isSelected)
+        _memberSplits.value = newList
+        recalculateSplits(0) // 0 übergeben, um gleichmäßige Verteilung zu triggern
+    }
+
+    fun updateManualAmount(index: Int, amount: Long) {
+        val newList = _memberSplits.value.toMutableList()
+        newList[index] = newList[index].copy(amountInCents = amount, amountText = (amount / 100.0).toString())
+        _memberSplits.value = newList
+        // Hier könnte man noch eine Logik einbauen, die prüft, ob die Summe noch passt
+    }
+
+    fun recalculateSplits(totalAmount: Long) {
+        val selectedMembers = _memberSplits.value.filter { it.isSelected }
+        if (selectedMembers.isEmpty() || totalAmount <= 0L) return
+
+        val share = totalAmount / selectedMembers.size
+        val newList = _memberSplits.value.map { member ->
+            if (member.isSelected) {
+                member.copy(amountInCents = share, amountText = (share / 100.0).toString())
+            } else {
+                member.copy(amountInCents = 0, amountText = "0")
+            }
+        }
+        _memberSplits.value = newList
+    }
+
     fun saveExpense(description: String, amountInCents: Long) {
         viewModelScope.launch {
-            val expenseId = UUID.randomUUID().toString()
-            val timestamp = System.currentTimeMillis()
+            val keyAlias = "SplitP2PUser"
+            val now = System.currentTimeMillis()
 
             // 1. Das Objekt erstellen (ohne Signatur)
+            currentExpenseLamport++
+            val expenseId = UUID.randomUUID().toString()
+
             val expense = Expense(
                 id = expenseId,
                 group_id = groupId,
-                timestamp = timestamp,
-                expense_date = timestamp,
-                lamport_clock = 0, // Hier müsste dein globaler Lamport-Counter rein
+                timestamp = now,
+                expense_date = now,
+                lamport_clock = currentExpenseLamport,
                 author_pubkey = myPublicKey,
                 amount = amountInCents,
                 description = description,
@@ -57,101 +116,44 @@ class AddExpenseViewModel(
             // 3. Mit Signatur speichern
             groupDao.insertExpense(expense.copy(signature = signature))
 
-            // 4. Splits für alle Mitglieder erstellen (einfaches Teilen)
-            val members = groupDao.getUsersInGroup(groupId)
-//            if (members.isNotEmpty()) {
-//                val share = amountInCents / members.size
-//                members.forEach { member ->
-//                    val split = Split(
-//                        id = java.util.UUID.randomUUID().toString(),
-//                        belongs_to = expenseId,
-//                        timestamp = now,
-//                        lamport_clock = 0,
-//                        author_pubkey = myPublicKey,
-//                        payer_key = myPublicKey,
-//                        debtor_key = member.public_key,
-//                        amount = share,
-//                        signature = "p2p-signed" // Hier müsste auch eine Signatur hin
-//                    )
-//                    groupDao.insertSplit(split)
-//                }
-//            }
-        }
-    }
-
-    // Wir nutzen ein MutableState, um die Liste in der UI beobachtbar zu machen
-    private val _memberSplits = mutableStateOf<List<MemberSplitState>>(emptyList())
-    val memberSplits: State<List<MemberSplitState>> = _memberSplits
-
-    // ÄNDERUNG: totalAmount als Parameter hinzufügen
-    fun loadMembers(totalAmount: Long) {
-        viewModelScope.launch {
-            groupDao.getUsersForGroupFlow(groupId).collect { users ->
-                _memberSplits.value = users.map { user ->
-                    val isMe = user.public_key == myPublicKey
-                    MemberSplitState(
-                        publicKey = user.public_key,
-                        name = user.name,
-                        isSelected = isMe
-                    )
-                }
-                recalculateSplits(totalAmount) // Jetzt mit dem übergebenen Wert
-            }
-        }
-    }
-
-    fun updateManualAmount(index: Int, newAmountInCents: Long, totalAmount: Long) {
-        val currentList = _memberSplits.value.toMutableList()
-        val split = currentList[index]
-        if (!split.isSelected) return
-
-        // 1. Den geänderten Wert setzen
-        currentList[index] = split.copy(
-            amountInCents = newAmountInCents,
-            amountText = (newAmountInCents / 100.0).toString(),
-            percentage = if (totalAmount > 0) newAmountInCents.toFloat() / totalAmount else 0f
-        )
-
-        // 2. Differenz auf andere ausgewählte Mitglieder verteilen
-        val remainingAmount = totalAmount - newAmountInCents
-        val otherIndices = currentList.indices.filter { it != index && currentList[it].isSelected }
-
-        if (otherIndices.isNotEmpty()) {
-            val share = remainingAmount / otherIndices.size
-            otherIndices.forEach { i ->
-                currentList[i] = currentList[i].copy(
-                    amountInCents = share,
-                    amountText = (share / 100.0).toString(),
-                    percentage = if (totalAmount > 0) share.toFloat() / totalAmount else 0f
+            // 2. Splits
+            _memberSplits.value.filter { it.isSelected && it.amountInCents > 0 }.forEach { member ->
+                splitLamport++
+                val splitId = UUID.randomUUID().toString()
+                val splitData = Split(
+                    id = splitId,
+                    belongs_to = expenseId,
+                    timestamp = now,
+                    lamport_clock = splitLamport,
+                    author_pubkey = myPublicKey,
+                    payer_key = myPublicKey,
+                    debtor_key = member.publicKey,
+                    amount = member.amountInCents,
+                    signature = ""
                 )
-            }
-        }
-        _memberSplits.value = currentList
-    }
 
-    fun toggleMember(publicKey: String, totalAmount: Long) {
-        _memberSplits.value = _memberSplits.value.map {
-            if (it.publicKey == publicKey) it.copy(isSelected = !it.isSelected) else it
-        }
-        recalculateSplits(totalAmount)
-    }
+                val splitJson = createSplitSignatureJson(splitData)
 
-    fun recalculateSplits(totalAmount: Long) {
-        val selectedMembers = _memberSplits.value.filter { it.isSelected }
-        if (selectedMembers.isEmpty()) return
+                val splitSig = signJsonWithKeystore(keyAlias, splitJson)
 
-        val share = totalAmount / selectedMembers.size
-        _memberSplits.value = _memberSplits.value.map { member ->
-            if (member.isSelected) {
-                member.copy(
-                    amountInCents = share,
-                    percentage = 1f / selectedMembers.size
-                )
-            } else {
-                member.copy(amountInCents = 0, percentage = 0f)
+                groupDao.insertSplit(splitData.copy(signature = splitSig))
             }
         }
     }
+}
+
+fun createSplitSignatureJson(splitData: Split): String {
+    val splitJson = buildJsonObject {
+        put("id", splitData.id)
+        put("belongs_to", splitData.belongs_to)
+        put("payer_key", splitData.payer_key)
+        put("debtor_key", splitData.debtor_key)
+        put("amount", splitData.amount)
+        put("author_pubkey", splitData.author_pubkey)
+        put("lamport_clock", splitData.lamport_clock)
+        put("timestamp", splitData.timestamp)
+    }
+    return splitJson.toString()
 }
 
 // Funktion um das deterministische JSON zu erzeugen
@@ -185,15 +187,7 @@ fun AddExpenseScreen(
 ) {
     var description by remember { mutableStateOf("") }
     var amountText by remember { mutableStateOf("") }
-    val totalAmountInCents = parseAmountToCents(amountText)
-
-    // Zugriff auf den State des ViewModels
-    val currentMemberSplits by viewModel.memberSplits
-
-    // Initiales Laden: totalAmountInCents mitgeben
-    LaunchedEffect(Unit) {
-        viewModel.loadMembers(totalAmountInCents)
-    }
+    val memberSplits by viewModel.memberSplits.collectAsState()
 
     Scaffold(
         topBar = {
@@ -210,19 +204,12 @@ fun AddExpenseScreen(
             )
         },
         floatingActionButton = {
-            // Speichern-Button nur aktiv, wenn Beschreibung und Betrag da sind
-            if (description.isNotBlank() && amountText.isNotBlank()) {
-                FloatingActionButton(
-                    onClick = {
-                        // Konvertierung von "12,50" oder "12.50" zu 1250 Cents
-                        val amountInCents = parseAmountToCents(amountText)
-                        onSave(description, amountInCents)
-                    },
-                    containerColor = Color(0xFF4CAF50),
-                    contentColor = Color.White
-                ) {
-                    Icon(Icons.Default.Check, contentDescription = "Speichern")
-                }
+            FloatingActionButton(onClick = {
+                val total = (amountText.toDoubleOrNull() ?: 0.0) * 100
+                viewModel.saveExpense(description, total.toLong())
+                onBack()
+            }) {
+                Icon(Icons.Default.Check, contentDescription = "Speichern")
             }
         }
     ) { paddingValues ->
@@ -257,18 +244,18 @@ fun AddExpenseScreen(
                 singleLine = true
             )
 
-            // split amount
-            Text("Aufteilung:", fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 16.dp))
-            //
-            currentMemberSplits.forEachIndexed { index, split ->
-                MemberSplitRow(
-                    member = split,
-                    totalAmount = totalAmountInCents,
-                    onToggle = { viewModel.toggleMember(split.publicKey, totalAmountInCents) },
-                    onAmountChange = { newCents ->
-                        viewModel.updateManualAmount(index, newCents, totalAmountInCents)
-                    }
-                )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text("Verteilung:", fontWeight = FontWeight.Bold)
+
+            LazyColumn {
+                itemsIndexed(memberSplits) { index, member ->
+                    MemberSplitRow(
+                        member = member,
+                        totalAmount = (amountText.toDoubleOrNull() ?: 0.0).toLong() * 100,
+                        onToggle = { viewModel.toggleMember(index) },
+                        onAmountChange = { viewModel.updateManualAmount(index, it) }
+                    )
+                }
             }
         }
     }
